@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>道路巡檢 v0.6</title>
+<style>
+:root {
+  --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a; --border: #2e3350;
+  --accent: #f5a623; --accent2: #3b82f6; --danger: #ef4444; --success: #22c55e;
+  --warning: #f59e0b; --info: #06b6d4; --text: #e8eaf0; --text2: #8b92a8;
+  --radius: 8px; --shadow: 0 4px 24px rgba(0,0,0,0.4); --font: 'Courier New','Noto Sans TC',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);font-size:15px;line-height:1.5}
+button{cursor:pointer;font-family:inherit;border:none;outline:none}
+input,select,textarea{font-family:inherit}
+.hidden{display:none!important}
+.flex{display:flex}.flex-col{flex-direction:column}.gap-2{gap:8px}.gap-3{gap:12px}
+.items-center{align-items:center}.justify-between{justify-content:space-between}
+.w-full{width:100%}.text-sm{font-size:13px}.text-xs{font-size:11px}.bold{font-weight:700}.muted{color:var(--text2)}
+
+.badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.05em;white-space:nowrap}
+.badge-pending{background:#334155;color:#94a3b8}
+.badge-active{background:#1d4ed8;color:#bfdbfe}
+.badge-done{background:#166534;color:#bbf7d0}
+.badge-error{background:#7f1d1d;color:#fecaca}
+.badge-skip{background:#78350f;color:#fde68a}
+.badge-bike-wait{background:#4c1d95;color:#ddd6fe}
+.badge-bike-doing{background:#1e3a5f;color:#bae6fd}
+.badge-bike-done{background:#065f46;color:#a7f3d0}
+
+#loginPage{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);padding:24px}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:40px 32px;width:100%;max-width:420px;box-shadow:var(--shadow)}
+.login-title{font-size:22px;font-weight:900;color:var(--accent);letter-spacing:.08em;margin-bottom:6px}
+.login-sub{color:var(--text2);font-size:13px;margin-bottom:28px}
+.form-label{font-size:12px;color:var(--text2);margin-bottom:6px;display:block;letter-spacing:.06em;text-transform:uppercase}
+.form-input{width:100%;padding:11px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:15px;margin-bottom:16px;transition:border-color .2s}
+.form-input:focus{border-color:var(--accent);outline:none}
+.form-select{width:100%;padding:11px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:15px;margin-bottom:20px;appearance:none}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 20px;border-radius:var(--radius);font-size:14px;font-weight:700;letter-spacing:.04em;transition:opacity .15s,transform .1s}
+.btn:active{transform:scale(.97)}.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#000}.btn-blue{background:var(--accent2);color:#fff}
+.btn-success{background:var(--success);color:#000}.btn-danger{background:var(--danger);color:#fff}
+.btn-warning{background:var(--warning);color:#000}.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn-info{background:var(--info);color:#000}.btn-sm{padding:7px 13px;font-size:12px}.btn-full{width:100%}
+
+#mainPage{min-height:100vh;display:flex;flex-direction:column}
+.topbar{background:var(--surface);border-bottom:2px solid var(--accent);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar-title{font-size:15px;font-weight:900;color:var(--accent);letter-spacing:.06em}
+.topbar-info{font-size:12px;color:var(--text2);text-align:right}
+.topbar-car{font-size:14px;font-weight:700;color:var(--info)}
+.sync-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--success);margin-left:6px;vertical-align:middle}
+.sync-dot.offline{background:var(--danger)}.sync-dot.syncing{background:var(--warning)}
+
+.tabbar{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto}
+.tab-btn{flex:1;min-width:80px;padding:12px 8px;background:none;color:var(--text2);font-size:13px;font-weight:700;border-bottom:3px solid transparent;white-space:nowrap;transition:color .2s,border-color .2s}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+.page-content{flex:1;padding:16px;max-width:900px;width:100%;margin:0 auto}
+
+.task-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;transition:border-color .2s}
+.task-card:hover{border-color:var(--accent2)}
+.task-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px}
+.task-title{font-size:15px;font-weight:700;line-height:1.4;flex:1}
+.task-meta{font-size:12px;color:var(--text2);margin-bottom:10px;display:flex;flex-wrap:wrap;gap:8px}
+.task-meta span::before{content:'▪ '}
+.task-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.task-history{margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.history-item{font-size:12px;color:var(--text2);padding:3px 0}
+.history-item span{color:var(--text)}
+
+.bike-task-card{background:var(--surface2);border:1px solid #4c1d95;border-radius:10px;padding:14px;margin-bottom:12px}
+.bike-task-card.mine{border-color:var(--info)}
+
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:20px}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 12px;text-align:center}
+.stat-num{font-size:28px;font-weight:900;color:var(--accent)}
+.stat-label{font-size:11px;color:var(--text2);margin-top:2px;letter-spacing:.04em}
+
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:12px 20px;font-size:14px;font-weight:700;z-index:9999;box-shadow:var(--shadow);transition:opacity .3s;max-width:340px;text-align:center}
+#toast.success{border-left-color:var(--success)}#toast.danger{border-left-color:var(--danger)}#toast.warning{border-left-color:var(--warning)}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow)}
+.modal-title{font-size:16px;font-weight:900;margin-bottom:16px;color:var(--accent)}
+.modal-actions{display:flex;gap:10px;margin-top:16px;justify-content:flex-end}
+
+.anomaly-option{display:flex;align-items:flex-start;gap:10px;padding:10px;border-radius:6px;border:1px solid var(--border);margin-bottom:8px;cursor:pointer;transition:background .15s,border-color .15s}
+.anomaly-option:hover{background:var(--surface2);border-color:var(--accent2)}
+.anomaly-option input[type="radio"]{margin-top:2px;accent-color:var(--accent)}
+.anomaly-option label{cursor:pointer;font-size:14px;line-height:1.4}
+
+.section-header{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--text2);text-transform:uppercase;padding:10px 0 6px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text2)}
+.empty-state .icon{font-size:40px;margin-bottom:10px}
+
+.log-item{padding:10px 14px;border-radius:6px;background:var(--surface);border:1px solid var(--border);margin-bottom:8px;font-size:13px}
+.log-time{font-size:11px;color:var(--text2);margin-bottom:3px}
+
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
+.setting-label{font-size:14px}.setting-desc{font-size:12px;color:var(--text2)}
+
+.car-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
+.car-btn{padding:14px;border-radius:8px;border:2px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;font-weight:700;transition:all .2s;text-align:center}
+.car-btn:hover{border-color:var(--accent)}
+.car-btn.selected{border-color:var(--accent);background:rgba(245,166,35,.12);color:var(--accent)}
+
+.loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9998;gap:16px}
+.loading-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:600px){.task-card-header{flex-direction:column}.topbar-title{font-size:13px}}
+</style>
+</head>
+<body>
+
+<!-- 載入畫面 -->
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div style="color:var(--text2);font-size:13px">連接 Firebase 中...</div>
+</div>
+
+<!-- 登入頁 -->
+<div id="loginPage" class="hidden">
+  <div class="login-box">
+    <div class="login-title">🛣 道路巡檢系統</div>
+    <div class="login-sub">Road Inspection v0.6 · Firebase 雲端版</div>
+    <label class="form-label">帳號</label>
+    <input type="text" id="loginUser" class="form-input" placeholder="輸入帳號" value="driver1">
+    <label class="form-label">密碼</label>
+    <input type="password" id="loginPass" class="form-input" placeholder="輸入密碼" value="1234">
+    <label class="form-label">選擇今日車輛</label>
+    <div class="car-grid" id="carGrid">
+      <button class="car-btn" data-car="CAR-01">🚗 CAR-01</button>
+      <button class="car-btn" data-car="CAR-02">🚗 CAR-02</button>
+      <button class="car-btn" data-car="BIKE-01">🚲 BIKE-01</button>
+      <button class="car-btn" data-car="BIKE-02">🚲 BIKE-02</button>
+    </div>
+    <div id="loginError" class="hidden" style="color:var(--danger);font-size:13px;margin-bottom:12px;"></div>
+    <button class="btn btn-primary btn-full" id="loginBtn">登入並開始巡檢</button>
+  </div>
+</div>
+
+<!-- 主畫面 -->
+<div id="mainPage" class="hidden">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">🛣 道路巡檢 <span id="syncDot" class="sync-dot offline" title="連線狀態"></span></div>
+      <div id="topbarCar" class="topbar-car"></div>
+    </div>
+    <div class="topbar-info">
+      <div id="topbarUser"></div>
+      <div id="topbarDate"></div>
+    </div>
+  </div>
+  <div class="tabbar">
+    <button class="tab-btn active" data-tab="tasks">📋 任務</button>
+    <button class="tab-btn" data-tab="bike">🚲 自行車支援</button>
+    <button class="tab-btn" data-tab="stats">📊 統計</button>
+    <button class="tab-btn" data-tab="log">📝 紀錄</button>
+    <button class="tab-btn" data-tab="settings">⚙️ 設定</button>
+  </div>
+  <div class="page-content">
+    <div id="tab-tasks">
+      <div id="taskStats" class="stat-grid"></div>
+      <div class="section-header">今日任務列表</div>
+      <div id="taskList"></div>
+    </div>
+    <div id="tab-bike" class="hidden">
+      <div class="section-header">待接支援任務</div>
+      <div id="bikePending"></div>
+      <div class="section-header">我接下的任務</div>
+      <div id="bikeMyTasks"></div>
+    </div>
+    <div id="tab-stats" class="hidden">
+      <div class="section-header">今日完成概況</div>
+      <div id="statsContent"></div>
+    </div>
+    <div id="tab-log" class="hidden">
+      <div class="section-header">操作紀錄（最新在上）</div>
+      <div id="logContent"></div>
+    </div>
+    <div id="tab-settings" class="hidden">
+      <div class="section-header">帳號與車輛</div>
+      <div class="setting-row">
+        <div><div class="setting-label">目前登入</div><div id="settingUser" class="setting-desc"></div></div>
+        <button class="btn btn-ghost btn-sm" id="logoutBtn">登出</button>
+      </div>
+      <div class="section-header" style="margin-top:16px">資料管理</div>
+      <div class="setting-row">
+        <div><div class="setting-label">重置為示範資料</div><div class="setting-desc">清除所有進度，恢復初始示範任務</div></div>
+        <button class="btn btn-danger btn-sm" id="resetBtn">重置</button>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">匯出備份（JSON）</div><div class="setting-desc">下載目前所有任務狀態</div></div>
+        <button class="btn btn-blue btn-sm" id="exportBtn">匯出</button>
+      </div>
+      <div class="section-header" style="margin-top:16px">連線狀態</div>
+      <div class="setting-row">
+        <div><div class="setting-label">Firebase 連線</div><div id="firebaseStatus" class="setting-desc">檢查中...</div></div>
+      </div>
+      <div class="section-header" style="margin-top:16px">版本資訊</div>
+      <div class="setting-row">
+        <div><div class="setting-label">版本</div><div class="setting-desc">道路巡檢系統 v0.6 · Firebase 雲端版</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden"></div>
+<div id="modalContainer"></div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import {
+  getFirestore, collection, doc, getDocs, getDoc,
+  setDoc, updateDoc, onSnapshot, writeBatch, serverTimestamp, query, orderBy
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// ============================================================
+//  Firebase 設定
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBD94K9ouRoVkae1chvxlrvuTU4yudGg_Q",
+  authDomain: "road-app-571bb.firebaseapp.com",
+  projectId: "road-app-571bb",
+  storageBucket: "road-app-571bb.firebasestorage.app",
+  messagingSenderId: "923565287988",
+  appId: "1:923565287988:web:39826acbe83dcf9bb0f861",
+  measurementId: "G-14W3KDT896"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ============================================================
+//  常數
+// ============================================================
+const DEMO_ACCOUNTS = [
+  { user: 'driver1', pass: '1234', name: '王大明' },
+  { user: 'driver2', pass: '1234', name: '李小華' },
+  { user: 'admin',   pass: 'admin', name: '管理員' },
+];
+
+const STATUS = {
+  PENDING:'pending', ACTIVE:'active', DONE:'done', ERROR:'error',
+  SKIP:'skip', BIKE_WAIT:'bike_wait', BIKE_DOING:'bike_doing', BIKE_DONE:'bike_done',
+};
+const STATUS_LABELS = {
+  pending:'未開始', active:'進行中', done:'已完成', error:'異常',
+  skip:'跳段', bike_wait:'待自行車支援', bike_doing:'自行車補拍中', bike_done:'自行車補拍完成',
+};
+const STATUS_BADGE = {
+  pending:'badge-pending', active:'badge-active', done:'badge-done', error:'badge-error',
+  skip:'badge-skip', bike_wait:'badge-bike-wait', bike_doing:'badge-bike-doing', bike_done:'badge-bike-done',
+};
+const ANOMALY_OPTIONS = [
+  '下雨無法拍攝','道路施工或封閉需擇日補拍',
+  '巷弄寬度不足，汽車無法安全通行，建議改由自行車支援拍攝',
+  '臨停車輛過多','拍攝程式異常','App 操作異常','車輛保養或異常','其他',
+];
+
+// ============================================================
+//  AppState
+// ============================================================
+const AppState = {
+  currentUser: null,
+  tasks: [],       // 本地快取
+  logs: [],        // 本地快取
+  unsubTasks: null,
+  unsubLogs: null,
+};
+
+// ============================================================
+//  工具
+// ============================================================
+function todayStr() {
+  return new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');
+}
+function nowStr() {
+  return new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+function isBike(v){ return v && v.startsWith('BIKE'); }
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function badgeHtml(s){ return `<span class="badge ${STATUS_BADGE[s]||''}">${STATUS_LABELS[s]||s}</span>`; }
+
+// ============================================================
+//  Toast
+// ============================================================
+let _toastTimer = null;
+function showToast(msg, type=''){
+  const el = document.getElementById('toast');
+  if(!el) return;
+  el.textContent = msg;
+  el.className = type||'';
+  el.classList.remove('hidden');
+  if(_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(()=>el.classList.add('hidden'), 3000);
+}
+
+// ============================================================
+//  Modal
+// ============================================================
+function openModal(html){
+  closeModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay'; overlay.id = 'activeModal';
+  overlay.innerHTML = `<div class="modal-box">${html}</div>`;
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) closeModal(); });
+  document.getElementById('modalContainer').appendChild(overlay);
+}
+function closeModal(){
+  const el = document.getElementById('activeModal');
+  if(el) el.remove();
+}
+
+// ============================================================
+//  示範任務資料
+// ============================================================
+function buildDemoTasks(){
+  const today = todayStr();
+  return [
+    { id:'T001', vehicle:'CAR-01', date:today, title:'民生東路三段（全段）', startAddr:'台北市松山區民生東路三段1號', endAddr:'台北市松山區民生東路三段200號', district:'松山區', length:'約2.1 km', lanes:2, direction:'雙向', passes:1, order:1, status:STATUS.PENDING, history:[], note:'', bikeVehicle:null, bikeUser:null },
+    { id:'T002', vehicle:'CAR-01', date:today, title:'敦化北路（建國北路口→農安街口）', startAddr:'台北市中山區敦化北路1號', endAddr:'台北市中山區敦化北路至農安街口', district:'中山區', length:'約1.8 km', lanes:3, direction:'雙向', passes:1, order:2, status:STATUS.PENDING, history:[], note:'', bikeVehicle:null, bikeUser:null },
+    { id:'T003', vehicle:'CAR-01', date:today, title:'松山路全段', startAddr:'台北市松山區松山路1號', endAddr:'台北市松山區松山路末段', district:'松山區', length:'約3.2 km', lanes:4, direction:'雙向', passes:2, order:3, status:STATUS.PENDING, history:[], note:'', bikeVehicle:null, bikeUser:null },
+    { id:'T004', vehicle:'CAR-02', date:today, title:'信義路五段（全段）', startAddr:'台北市信義區信義路五段1號', endAddr:'台北市信義區信義路五段末段', district:'信義區', length:'約2.5 km', lanes:6, direction:'雙向', passes:2, order:1, status:STATUS.PENDING, history:[], note:'', bikeVehicle:null, bikeUser:null },
+    { id:'T005', vehicle:'CAR-02', date:today, title:'忠孝東路四段', startAddr:'台北市大安區忠孝東路四段1號', endAddr:'台北市大安區忠孝東路四段末段', district:'大安區', length:'約2.9 km', lanes:6, direction:'雙向', passes:2, order:2, status:STATUS.PENDING, history:[], note:'', bikeVehicle:null, bikeUser:null },
+    { id:'T006', vehicle:'CAR-01', date:today, title:'新中街（四平街口→民族東路口）', startAddr:'台北市中山區新中街1號', endAddr:'台北市中山區新中街至民族東路', district:'中山區', length:'約0.6 km', lanes:1, direction:'單向', passes:1, order:4, status:STATUS.PENDING, history:[], note:'', bikeVehicle:null, bikeUser:null },
+  ];
+}
+
+// ============================================================
+//  Firebase 讀寫
+// ============================================================
+async function fbSaveTask(task){
+  try {
+    await setDoc(doc(db,'tasks', task.id), task);
+  } catch(e){ console.error('fbSaveTask error', e); showToast('儲存失敗，請檢查網路','danger'); }
+}
+
+async function fbAddLog(logObj){
+  try {
+    const id = `LOG_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+    await setDoc(doc(db,'logs', id), { ...logObj, createdAt: Date.now() });
+  } catch(e){ console.error('fbAddLog error', e); }
+}
+
+async function fbResetTasks(){
+  try {
+    const batch = writeBatch(db);
+    // 刪除現有任務
+    const snap = await getDocs(collection(db,'tasks'));
+    snap.forEach(d => batch.delete(d.ref));
+    // 刪除現有紀錄
+    const logSnap = await getDocs(collection(db,'logs'));
+    logSnap.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    // 寫入示範資料
+    const batch2 = writeBatch(db);
+    buildDemoTasks().forEach(t => batch2.set(doc(db,'tasks',t.id), t));
+    await batch2.commit();
+    showToast('已重置為示範資料','success');
+  } catch(e){ console.error('fbResetTasks error', e); showToast('重置失敗：'+e.message,'danger'); }
+}
+
+// ============================================================
+//  即時監聽
+// ============================================================
+function startListening(){
+  // 監聽任務
+  if(AppState.unsubTasks) AppState.unsubTasks();
+  AppState.unsubTasks = onSnapshot(
+    collection(db,'tasks'),
+    snap => {
+      AppState.tasks = snap.docs.map(d => d.data());
+      renderAll();
+      setSyncDot('online');
+    },
+    err => { console.error('tasks snapshot error', err); setSyncDot('offline'); }
+  );
+  // 監聽紀錄
+  if(AppState.unsubLogs) AppState.unsubLogs();
+  AppState.unsubLogs = onSnapshot(
+    collection(db,'logs'),
+    snap => {
+      AppState.logs = snap.docs.map(d=>d.data()).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+      renderLog();
+    },
+    err => { console.error('logs snapshot error', err); }
+  );
+}
+
+function stopListening(){
+  if(AppState.unsubTasks){ AppState.unsubTasks(); AppState.unsubTasks = null; }
+  if(AppState.unsubLogs){ AppState.unsubLogs(); AppState.unsubLogs = null; }
+}
+
+function setSyncDot(state){
+  const el = document.getElementById('syncDot');
+  if(!el) return;
+  el.className = 'sync-dot ' + (state==='online'?'':'offline');
+  el.title = state==='online'?'已連線':'離線';
+  const statusEl = document.getElementById('firebaseStatus');
+  if(statusEl) statusEl.textContent = state==='online'?'✅ 已連線至 Firebase 雲端':'❌ 連線中斷，請檢查網路';
+}
+
+// ============================================================
+//  初始化：確認 Firebase 並載入資料
+// ============================================================
+async function initFirebase(){
+  try {
+    const snap = await getDocs(collection(db,'tasks'));
+    if(snap.empty){
+      // 第一次使用，寫入示範資料
+      const batch = writeBatch(db);
+      buildDemoTasks().forEach(t => batch.set(doc(db,'tasks',t.id), t));
+      await batch.commit();
+    }
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    document.getElementById('loginPage').classList.remove('hidden');
+    setSyncDot('online');
+  } catch(e){
+    console.error('Firebase init error', e);
+    document.getElementById('loadingOverlay').innerHTML = `
+      <div style="color:var(--danger);text-align:center;padding:20px">
+        <div style="font-size:32px;margin-bottom:12px">⚠️</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:8px">Firebase 連線失敗</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:16px">${e.message}</div>
+        <button onclick="location.reload()" class="btn btn-primary">重新整理</button>
+      </div>`;
+  }
+}
+
+// ============================================================
+//  登入
+// ============================================================
+let _selectedCar = '';
+document.getElementById('carGrid').addEventListener('click', e=>{
+  const btn = e.target.closest('.car-btn'); if(!btn) return;
+  _selectedCar = btn.dataset.car;
+  document.querySelectorAll('.car-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+});
+
+document.getElementById('loginBtn').addEventListener('click', ()=>{
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value.trim();
+  const errEl = document.getElementById('loginError');
+  const account = DEMO_ACCOUNTS.find(a=>a.user===user&&a.pass===pass);
+  if(!account){ errEl.textContent='帳號或密碼錯誤'; errEl.classList.remove('hidden'); return; }
+  if(!_selectedCar){ errEl.textContent='請選擇今日使用車輛'; errEl.classList.remove('hidden'); return; }
+  errEl.classList.add('hidden');
+  AppState.currentUser = { user:account.user, name:account.name, vehicle:_selectedCar };
+  document.getElementById('loginPage').classList.add('hidden');
+  document.getElementById('mainPage').classList.remove('hidden');
+  initMainPage();
+});
+
+// ============================================================
+//  主畫面
+// ============================================================
+function initMainPage(){
+  const { name, vehicle } = AppState.currentUser;
+  document.getElementById('topbarCar').textContent = vehicle;
+  document.getElementById('topbarUser').textContent = name;
+  document.getElementById('topbarDate').textContent = todayStr();
+  document.getElementById('settingUser').textContent = `${name} / ${vehicle}`;
+  startListening();
+  renderAll();
+}
+
+// Tab 切換
+document.querySelector('.tabbar').addEventListener('click', e=>{
+  const btn = e.target.closest('.tab-btn'); if(!btn) return;
+  const tab = btn.dataset.tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b===btn));
+  document.querySelectorAll('.page-content > div[id^="tab-"]').forEach(d=>{
+    d.classList.toggle('hidden', d.id!==`tab-${tab}`);
+  });
+});
+
+// ============================================================
+//  渲染
+// ============================================================
+function renderAll(){ renderTasks(); renderBikeTab(); renderStats(); }
+
+function renderTasks(){
+  if(!AppState.currentUser) return;
+  const vehicle = AppState.currentUser.vehicle;
+  const myTasks = AppState.tasks.filter(t=>t.vehicle===vehicle);
+  const total=myTasks.length, done=myTasks.filter(t=>[STATUS.DONE,STATUS.BIKE_DONE].includes(t.status)).length,
+    active=myTasks.filter(t=>t.status===STATUS.ACTIVE).length, error=myTasks.filter(t=>t.status===STATUS.ERROR).length,
+    skip=myTasks.filter(t=>t.status===STATUS.SKIP).length, bikeWait=myTasks.filter(t=>t.status===STATUS.BIKE_WAIT).length,
+    pending=myTasks.filter(t=>t.status===STATUS.PENDING).length;
+
+  document.getElementById('taskStats').innerHTML = `
+    <div class="stat-box"><div class="stat-num">${total}</div><div class="stat-label">全部任務</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:var(--success)">${done}</div><div class="stat-label">已完成</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:var(--info)">${active}</div><div class="stat-label">進行中</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:var(--text2)">${pending}</div><div class="stat-label">未開始</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:var(--danger)">${error}</div><div class="stat-label">異常</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:var(--warning)">${skip+bikeWait}</div><div class="stat-label">跳段/轉支援</div></div>`;
+
+  if(!myTasks.length){
+    document.getElementById('taskList').innerHTML=`<div class="empty-state"><div class="icon">📋</div>此車輛今日無任務</div>`;
+    return;
+  }
+  document.getElementById('taskList').innerHTML = myTasks.sort((a,b)=>a.order-b.order).map(renderTaskCard).join('');
+}
+
+function renderTaskCard(task){
+  const histHtml = (task.history||[]).length > 0
+    ? `<div class="task-history">${[...(task.history||[])].reverse().slice(0,4).map(h=>
+        `<div class="history-item"><span>[${h.time}]</span> ${escHtml(h.msg)}</div>`).join('')}</div>`
+    : '';
+  const gmUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(task.endAddr)}&origin=${encodeURIComponent(task.startAddr)}&travelmode=driving`;
+  return `
+  <div class="task-card" id="card-${task.id}">
+    <div class="task-card-header">
+      <div class="task-title">${escHtml(task.title)}</div>
+      ${badgeHtml(task.status)}
+    </div>
+    <div class="task-meta">
+      <span>${task.district}</span><span>${task.length}</span>
+      <span>${task.lanes} 車道 · ${task.direction}</span><span>跑 ${task.passes} 趟</span>
+    </div>
+    <div class="task-meta" style="margin-bottom:0">
+      <span style="color:var(--text2);font-size:11px">${escHtml(task.startAddr)} → ${escHtml(task.endAddr)}</span>
+    </div>
+    ${task.note?`<div style="margin-top:8px;padding:8px;background:var(--surface2);border-radius:6px;font-size:12px;color:var(--warning)">📝 ${escHtml(task.note)}</div>`:''}
+    <div class="task-actions">
+      ${buildTaskActions(task)}
+      <a href="${gmUrl}" target="_blank" rel="noopener"><button class="btn btn-info btn-sm">🗺 Google Maps 導航</button></a>
+    </div>
+    ${histHtml}
+  </div>`;
+}
+
+function buildTaskActions(task){
+  const s=task.status; let btns='';
+  if(s===STATUS.PENDING) btns+=`<button class="btn btn-blue btn-sm" data-action="start" data-id="${task.id}">▶ 開始任務</button>`;
+  if(s===STATUS.ACTIVE){
+    btns+=`<button class="btn btn-success btn-sm" data-action="done" data-id="${task.id}">✔ 完成任務</button>`;
+    btns+=`<button class="btn btn-danger btn-sm" data-action="error" data-id="${task.id}">⚠ 回報異常</button>`;
+    btns+=`<button class="btn btn-warning btn-sm" data-action="skip" data-id="${task.id}">⏭ 跳段</button>`;
+    btns+=`<button class="btn btn-ghost btn-sm" data-action="bike_support" data-id="${task.id}">🚲 轉自行車支援</button>`;
+  }
+  if(s===STATUS.ERROR||s===STATUS.SKIP){
+    btns+=`<button class="btn btn-blue btn-sm" data-action="restart" data-id="${task.id}">🔄 重新開始</button>`;
+    if(s===STATUS.ERROR) btns+=`<button class="btn btn-ghost btn-sm" data-action="bike_support" data-id="${task.id}">🚲 轉自行車支援</button>`;
+  }
+  return btns;
+}
+
+function renderBikeTab(){
+  if(!AppState.currentUser) return;
+  const vehicle = AppState.currentUser.vehicle;
+  const isB = isBike(vehicle);
+  const waiting = AppState.tasks.filter(t=>t.status===STATUS.BIKE_WAIT);
+  document.getElementById('bikePending').innerHTML = waiting.length===0
+    ? `<div class="empty-state"><div class="icon">🚲</div>目前無待接任務</div>`
+    : waiting.map(t=>`
+      <div class="bike-task-card">
+        <div class="flex justify-between items-center" style="margin-bottom:8px">
+          <div class="bold">${escHtml(t.title)}</div>${badgeHtml(t.status)}
+        </div>
+        <div class="text-sm muted">${t.district} · ${t.length}</div>
+        <div class="text-xs muted" style="margin-top:4px">${escHtml(t.startAddr)}</div>
+        ${t.note?`<div style="margin-top:6px;font-size:12px;color:var(--warning)">原因：${escHtml(t.note)}</div>`:''}
+        ${isB?`<div class="task-actions" style="margin-top:10px">
+          <button class="btn btn-info btn-sm" data-action="bike_accept" data-id="${t.id}">🚲 接下任務</button>
+        </div>`:`<div class="text-xs muted" style="margin-top:8px">需自行車帳號才能接單</div>`}
+      </div>`).join('');
+
+  const mine = AppState.tasks.filter(t=>
+    (t.status===STATUS.BIKE_DOING||t.status===STATUS.BIKE_DONE) && t.bikeVehicle===vehicle
+  );
+  document.getElementById('bikeMyTasks').innerHTML = mine.length===0
+    ? `<div class="empty-state"><div class="icon">📋</div>尚未接下任何補拍任務</div>`
+    : mine.map(t=>{
+        const gmUrl=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(t.endAddr)}&origin=${encodeURIComponent(t.startAddr)}&travelmode=bicycling`;
+        return `<div class="bike-task-card mine">
+          <div class="flex justify-between items-center" style="margin-bottom:8px">
+            <div class="bold">${escHtml(t.title)}</div>${badgeHtml(t.status)}
+          </div>
+          <div class="text-sm muted">${t.district} · ${t.length}</div>
+          <div class="task-actions" style="margin-top:10px">
+            ${t.status===STATUS.BIKE_DOING?`
+              <button class="btn btn-success btn-sm" data-action="bike_done" data-id="${t.id}">✔ 補拍完成</button>
+              <button class="btn btn-danger btn-sm" data-action="bike_cancel" data-id="${t.id}">✖ 取消接單</button>`:''}
+            <a href="${gmUrl}" target="_blank" rel="noopener"><button class="btn btn-info btn-sm">🗺 導航（自行車）</button></a>
+          </div>
+        </div>`;
+      }).join('');
+}
+
+function renderStats(){
+  const tasks = AppState.tasks;
+  const total=tasks.length, done=tasks.filter(t=>[STATUS.DONE,STATUS.BIKE_DONE].includes(t.status)).length;
+  const pct = total>0?Math.round(done/total*100):0;
+  const rows = Object.values(STATUS).map(s=>`
+    <div class="log-item flex justify-between items-center">
+      ${badgeHtml(s)}<span class="bold">${tasks.filter(t=>t.status===s).length} 件</span>
+    </div>`).join('');
+  document.getElementById('statsContent').innerHTML=`
+    <div class="stat-box" style="margin-bottom:16px;text-align:center">
+      <div class="stat-num">${pct}%</div>
+      <div class="stat-label">整體完成率（${done}/${total}）</div>
+    </div>${rows}`;
+}
+
+function renderLog(){
+  const logs = AppState.logs;
+  document.getElementById('logContent').innerHTML = logs.length===0
+    ? `<div class="empty-state"><div class="icon">📝</div>尚無操作紀錄</div>`
+    : logs.slice(0,80).map(l=>`
+        <div class="log-item">
+          <div class="log-time">${l.date||''} ${l.time||''}　${l.vehicle?`[${l.vehicle}]`:''}</div>
+          <div>${escHtml(l.msg)}</div>
+        </div>`).join('');
+}
+
+// ============================================================
+//  任務操作 helpers
+// ============================================================
+function getTask(id){ return AppState.tasks.find(t=>t.id===id); }
+
+function pushHistory(task, msg){
+  if(!task.history) task.history=[];
+  task.history.push({ time:nowStr(), msg, vehicle:AppState.currentUser?.vehicle||'', user:AppState.currentUser?.name||'' });
+}
+
+async function addLog(msg){
+  const logObj = { time:nowStr(), date:todayStr(), msg, vehicle:AppState.currentUser?.vehicle||'' };
+  await fbAddLog(logObj);
+}
+
+// ============================================================
+//  事件委派
+// ============================================================
+document.addEventListener('click', async e=>{
+  const btn = e.target.closest('[data-action]'); if(!btn) return;
+  const action=btn.dataset.action, id=btn.dataset.id;
+  try {
+    switch(action){
+      case 'start':        await actionStart(id);       break;
+      case 'done':         await actionDone(id);        break;
+      case 'error':              actionError(id);       break;
+      case 'skip':               actionSkip(id);        break;
+      case 'restart':      await actionRestart(id);     break;
+      case 'bike_support':       actionBikeSupport(id); break;
+      case 'bike_accept':  await actionBikeAccept(id);  break;
+      case 'bike_done':    await actionBikeDone(id);    break;
+      case 'bike_cancel':  await actionBikeCancel(id);  break;
+    }
+  } catch(err){ console.error('action error', action, err); showToast('操作發生錯誤：'+err.message,'danger'); }
+});
+
+// Modal 按鈕
+document.addEventListener('click', e=>{
+  if(e.target.closest('[data-close-modal]')){ closeModal(); return; }
+});
+
+// ============================================================
+//  操作函數
+// ============================================================
+async function actionStart(id){
+  const t=getTask(id); if(!t) return;
+  if(![STATUS.PENDING,STATUS.ERROR,STATUS.SKIP].includes(t.status)){ showToast('此任務無法開始'); return; }
+  t.status=STATUS.ACTIVE; pushHistory(t,'開始任務');
+  await fbSaveTask(t); await addLog(`[${t.vehicle}] 開始任務：${t.title}`);
+  showToast('任務已開始！','success');
+}
+
+async function actionDone(id){
+  const t=getTask(id); if(!t) return;
+  if(t.status!==STATUS.ACTIVE){ showToast('任務尚未開始'); return; }
+  t.status=STATUS.DONE; pushHistory(t,'完成任務');
+  await fbSaveTask(t); await addLog(`[${t.vehicle}] 完成任務：${t.title}`);
+  showToast('🎉 任務完成！','success');
+}
+
+async function actionRestart(id){
+  const t=getTask(id); if(!t) return;
+  t.status=STATUS.ACTIVE; pushHistory(t,'重新開始任務');
+  await fbSaveTask(t); await addLog(`[${t.vehicle}] 重新開始：${t.title}`);
+  showToast('任務重新進行中','success');
+}
+
+function actionError(id){
+  const t=getTask(id); if(!t) return;
+  const optHtml = ANOMALY_OPTIONS.map((opt,i)=>`
+    <div class="anomaly-option">
+      <input type="radio" name="anomalyOpt" id="aopt${i}" value="${escHtml(opt)}">
+      <label for="aopt${i}">${escHtml(opt)}</label>
+    </div>`).join('');
+  openModal(`
+    <div class="modal-title">⚠ 回報異常 — ${escHtml(t.title)}</div>
+    <div style="margin-bottom:12px;font-size:13px;color:var(--text2)">請選擇異常原因：</div>
+    ${optHtml}
+    <div style="margin-top:12px">
+      <label class="form-label">補充說明（選填）</label>
+      <textarea id="anomalyNote" class="form-input" rows="2" style="resize:none;margin-bottom:0" placeholder="可補充詳細情況..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" data-close-modal>取消</button>
+      <button class="btn btn-danger btn-sm" id="confirmErrorBtn">確認回報</button>
+    </div>`);
+  document.getElementById('confirmErrorBtn').addEventListener('click', async()=>{
+    const selected = document.querySelector('input[name="anomalyOpt"]:checked');
+    if(!selected){ showToast('請選擇異常原因','danger'); return; }
+    const note = document.getElementById('anomalyNote')?.value.trim()||'';
+    const reason = selected.value+(note?`（${note}）`:'');
+    t.status=STATUS.ERROR; t.note=reason; pushHistory(t,`回報異常：${reason}`);
+    await fbSaveTask(t); await addLog(`[${t.vehicle}] 異常：${t.title} → ${reason}`);
+    closeModal(); showToast('異常已回報','danger');
+  });
+}
+
+function actionSkip(id){
+  const t=getTask(id); if(!t) return;
+  openModal(`
+    <div class="modal-title">⏭ 跳段 — ${escHtml(t.title)}</div>
+    <div style="margin-bottom:12px;font-size:13px;color:var(--warning)">跳段必須填寫原因，此紀錄將永久保留。</div>
+    <label class="form-label">跳段原因（必填）</label>
+    <textarea id="skipReason" class="form-input" rows="3" style="resize:none;margin-bottom:0" placeholder="請說明跳段原因..."></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" data-close-modal>取消</button>
+      <button class="btn btn-warning btn-sm" id="confirmSkipBtn">確認跳段</button>
+    </div>`);
+  document.getElementById('confirmSkipBtn').addEventListener('click', async()=>{
+    const reason = document.getElementById('skipReason')?.value.trim()||'';
+    if(!reason){ showToast('請填寫跳段原因','danger'); return; }
+    t.status=STATUS.SKIP; t.note=reason; pushHistory(t,`跳段：${reason}`);
+    await fbSaveTask(t); await addLog(`[${t.vehicle}] 跳段：${t.title} → ${reason}`);
+    closeModal(); showToast('跳段已記錄','warning');
+  });
+}
+
+function actionBikeSupport(id){
+  const t=getTask(id); if(!t) return;
+  openModal(`
+    <div class="modal-title">🚲 轉自行車支援 — ${escHtml(t.title)}</div>
+    <div style="margin-bottom:12px;font-size:13px;color:var(--text2)">確認後此路段將進入「待自行車支援」，等待自行車駕駛接單。</div>
+    <label class="form-label">原因說明（選填）</label>
+    <textarea id="bikeNote" class="form-input" rows="2" style="resize:none;margin-bottom:0" placeholder="例：巷道寬度不足..."></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" data-close-modal>取消</button>
+      <button class="btn btn-info btn-sm" id="confirmBikeSupportBtn">確認轉支援</button>
+    </div>`);
+  document.getElementById('confirmBikeSupportBtn').addEventListener('click', async()=>{
+    const note = document.getElementById('bikeNote')?.value.trim()||'';
+    t.status=STATUS.BIKE_WAIT; t.note=note||'汽車無法通行，轉自行車補拍';
+    pushHistory(t,`轉自行車支援${note?'：'+note:''}`);
+    await fbSaveTask(t); await addLog(`[${t.vehicle}] 轉自行車支援：${t.title}`);
+    closeModal(); showToast('已轉自行車支援，等待接單','success');
+  });
+}
+
+async function actionBikeAccept(id){
+  const t=getTask(id); if(!t) return;
+  if(t.status!==STATUS.BIKE_WAIT){ showToast('此任務已被接單'); return; }
+  const vehicle=AppState.currentUser.vehicle;
+  if(!isBike(vehicle)){ showToast('只有自行車帳號可以接單','danger'); return; }
+  t.status=STATUS.BIKE_DOING; t.bikeVehicle=vehicle; t.bikeUser=AppState.currentUser.name;
+  pushHistory(t,`自行車接單（${vehicle} ${AppState.currentUser.name}）`);
+  await fbSaveTask(t); await addLog(`[${vehicle}] 接下補拍任務：${t.title}`);
+  showToast('已接下補拍任務！','success');
+}
+
+async function actionBikeDone(id){
+  const t=getTask(id); if(!t) return;
+  if(t.status!==STATUS.BIKE_DOING){ showToast('任務狀態異常'); return; }
+  if(t.bikeVehicle!==AppState.currentUser.vehicle){ showToast('只有接單者才能完成補拍','danger'); return; }
+  t.status=STATUS.BIKE_DONE; pushHistory(t,`自行車補拍完成（${t.bikeVehicle}）`);
+  await fbSaveTask(t); await addLog(`[${t.bikeVehicle}] 補拍完成：${t.title}`);
+  showToast('🎉 補拍完成！','success');
+}
+
+async function actionBikeCancel(id){
+  const t=getTask(id); if(!t) return;
+  if(t.status!==STATUS.BIKE_DOING){ showToast('任務狀態異常'); return; }
+  if(t.bikeVehicle!==AppState.currentUser.vehicle){ showToast('只有接單者才能取消','danger'); return; }
+  pushHistory(t,`自行車取消接單（${t.bikeVehicle}）`);
+  await addLog(`[${t.bikeVehicle}] 取消接單：${t.title}`);
+  t.status=STATUS.BIKE_WAIT; t.bikeVehicle=null; t.bikeUser=null;
+  await fbSaveTask(t); showToast('已取消接單，任務回到待接狀態');
+}
+
+// ============================================================
+//  設定頁
+// ============================================================
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  if(!confirm('確定要登出？')) return;
+  stopListening();
+  AppState.currentUser=null; AppState.tasks=[]; AppState.logs=[];
+  document.getElementById('mainPage').classList.add('hidden');
+  document.getElementById('loginPage').classList.remove('hidden');
+  _selectedCar='';
+  document.querySelectorAll('.car-btn').forEach(b=>b.classList.remove('selected'));
+});
+
+document.getElementById('resetBtn').addEventListener('click', async()=>{
+  if(!confirm('確定要重置所有資料？這將清除所有進度，恢復示範任務，無法復原。')) return;
+  showToast('重置中...','warning');
+  await fbResetTasks();
+});
+
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  try {
+    const data = { exportTime:new Date().toISOString(), user:AppState.currentUser, tasks:AppState.tasks, logs:AppState.logs };
+    const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download=`road_inspection_backup_${todayStr()}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('備份已匯出','success');
+  } catch(e){ showToast('匯出失敗：'+e.message,'danger'); }
+});
+
+// ============================================================
+//  啟動
+// ============================================================
+initFirebase();
+console.log('[道路巡檢 v0.6] Firebase 雲端版啟動');
+</script>
+</body>
+</html>
